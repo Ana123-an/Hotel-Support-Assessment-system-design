@@ -1,0 +1,544 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}</style><style>:root{color-scheme:light dark;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}}:root[data-theme="dark"]{color-scheme:dark;--md-bg:#0d0d0d;--md-text:rgba(255,255,255,.85);--md-muted:rgba(255,255,255,.6);--md-fill:rgba(255,255,255,.06);--md-fill-strong:rgba(255,255,255,.09);--md-rule:rgba(255,255,255,.14);--md-rule-strong:rgba(255,255,255,.22);--md-link:hsl(210 100% 72%)}:root[data-theme="light"]{color-scheme:light}@media print{:root,:root[data-theme="dark"]{color-scheme:light;--md-bg:#fff;--md-text:rgba(0,0,0,.8);--md-muted:rgba(0,0,0,.6);--md-fill:rgba(0,0,0,.04);--md-fill-strong:rgba(0,0,0,.06);--md-rule:rgba(0,0,0,.1);--md-rule-strong:rgba(0,0,0,.16);--md-link:hsl(210 100% 45%)}}body{background:var(--md-bg);color:var(--md-text);max-width:720px;margin:0 auto;padding:32px;display:flex;flex-direction:column;gap:10px;font:14px/1.55 -apple-system,BlinkMacSystemFont,'SF Pro','Segoe UI',sans-serif;overflow-wrap:break-word}body>:first-child{margin-top:0}h1,h2,h3,h4,h5,h6{margin:6px 0 0;line-height:1.25;font-weight:600;text-wrap:balance}h1{font-size:1.35em}h2{font-size:1.15em;color:var(--md-muted)}h3,h4,h5,h6{font-size:1em}p,ul,ol,blockquote,table,pre,hr{margin:0}strong{font-weight:600}a{color:var(--md-link);text-decoration:none}a:hover{text-decoration:underline}ul,ol{display:flex;flex-direction:column;gap:6px;padding-left:22px}ul{list-style:disc}ol{list-style:decimal}:is(li,td,th)>*+:is(p,ul,ol,blockquote){margin-top:6px}blockquote{display:flex;flex-direction:column;gap:10px;border-left:2px solid var(--md-rule);padding-left:10px;color:var(--md-muted)}:not(pre)>code{background:var(--md-fill);padding:1px 3px;border-radius:4px;font:.92em 'SF Mono',ui-monospace,Menlo,Consolas,monospace}a>code{background:none;color:inherit}pre{background:var(--md-fill);padding:10px 12px;border-radius:6px;overflow-x:auto;font:12px/1.5 'SF Mono',ui-monospace,Menlo,Consolas,monospace;margin-block:4px}pre code{background:none;padding:0;font:inherit}table{width:100%;border-collapse:separate;border-spacing:2px;font:inherit}th,td{padding:6px 8px;border-radius:3px;text-align:left;vertical-align:top}th{background:var(--md-fill-strong);font-weight:600}td{background:var(--md-fill)}:is(th,td) :not(pre)>code{background:transparent}hr{border:0;border-top:1px solid var(--md-rule-strong);margin-block:10px}img{max-width:100%;height:auto;border-radius:4px}</style>
+</head><body>
+<h1>Taking the human 30% toward zero: design for a hospitality SaaS on Intercom</h1>
+<p><strong>My position up front:</strong> I would not promise 0%. Some conversations <em>should</em> reach a person (refunds, security, cancellations). The real goal is that no conversation reaches a human <strong>by accident</strong>: every handoff is chosen by a rule, and arrives fully prepared. I would commit to <strong>~85% no-human resolution by month 6</strong> (see the last section). Everything below marked <strong>[A]</strong> is an assumption; <strong>[?]</strong> means I don't know.</p>
+<hr>
+<h2>1. Reading the problem</h2>
+<h3>What I would ask first</h3>
+<table>
+<thead>
+<tr>
+<th>Question</th>
+<th>Who</th>
+<th>Why the answer changes the design</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>What is the 70% today: Intercom Fin, Workflows/bots, or just article suggestions?</td>
+<td>Head of Support</td>
+<td>Decides whether I extend Fin or add my own layer. Changes the cost model entirely.</td>
+</tr>
+<tr>
+<td>Export of the last 90 days of human-handled conversations, with tags, handle time, CSAT</td>
+<td>Support Ops</td>
+<td>The single most important input. It tells me what the 30% actually <em>is</em>. Without it, everything is a guess.</td>
+</tr>
+<tr>
+<td>Is there a customer/property API (read and write), and what auth? Multi-tenant?</td>
+<td>CTO / platform lead</td>
+<td>Decides how much I can <em>act</em> versus only <em>answer</em>. If there is no API, action-taking is out of scope for phase 1.</td>
+</tr>
+<tr>
+<td>How are customers identified in Intercom (identity verification, company ↔ property mapping)?</td>
+<td>Engineering + Support Ops</td>
+<td>Wrong mapping means one hotel sees another's data. It is the worst failure mode, and it gates everything.</td>
+</tr>
+<tr>
+<td>Contractual terms: SLA promises, data residency, DPA, PCI/GDPR obligations</td>
+<td>Legal / Security</td>
+<td>Decides which LLM vendor and region I can use, and what may be logged.</td>
+</tr>
+<tr>
+<td>Refund/credit policy and who may approve what</td>
+<td>Finance / CS lead</td>
+<td>Defines the &quot;never automate&quot; and &quot;automate up to a limit&quot; boundary.</td>
+</tr>
+<tr>
+<td>How often does the product ship, and are docs updated as part of release?</td>
+<td>Product / Docs owner</td>
+<td>Determines how stale the knowledge will get.</td>
+</tr>
+<tr>
+<td>Languages, time zones, 24×7 coverage?</td>
+<td>Support Ops</td>
+<td>Hotels run at 3 a.m.; a front-desk outage at check-in is not a &quot;next business day&quot; problem.</td>
+</tr>
+<tr>
+<td>Volume per month and current cost per human-handled ticket</td>
+<td>Finance / Support Ops</td>
+<td>Gives the business case a denominator.</td>
+</tr>
+</tbody>
+</table>
+<h3>Why the 30% doesn't resolve itself</h3>
+<ol>
+<li><strong>It needs the customer's account, not the docs</strong> (&quot;why did my channel-manager sync fail for <em>my</em> property?&quot;).</li>
+<li><strong>It needs an action with consequences</strong> (refund, plan change, user permission, data export).</li>
+<li><strong>The knowledge doesn't exist or is stale</strong> (new feature, undocumented edge case, tribal knowledge in agents' heads).</li>
+<li><strong>It is a product bug or live incident</strong>, so the truthful answer is &quot;engineering is working on it&quot;.</li>
+<li><strong>It is high-emotion or high-stakes</strong> (billing dispute, churn threat, angry GM, legal or data-breach language).</li>
+<li><strong>It needs judgement or an exception</strong> (goodwill credit, contract nuance).</li>
+<li><strong>It is ambiguous or multi-issue</strong>, and the customer's first message doesn't say what they want.</li>
+<li><strong>It involves third parties</strong> (payment gateways, OTA/channel managers, PMS integrations) and multi-step diagnosis.</li>
+<li><strong>The customer demands a human</strong>, and forcing them through a bot destroys trust.</li>
+<li><strong>Format problems</strong>: screenshots, screen recordings, other languages, voice-note-style rambling.</li>
+</ol>
+<h3>Easy vs genuinely hard</h3>
+<ul>
+<li><strong>Straightforward (roughly 35–45% of the 30%, my estimate [A]):</strong> 1 in its read-only form, 3 (fixable by better docs), 7 (clarifying questions), 10 (vision and translation).</li>
+<li><strong>Moderate:</strong> 2 for low-risk reversible actions (resend invoice, reset a user, re-trigger a sync); 8 with a guided diagnostic.</li>
+<li><strong>Genuinely hard or should stay human:</strong> 4 (can't be &quot;resolved&quot;, only communicated well), 5, 6, and refunds/cancellations in 2.</li>
+</ul>
+<h3>Before committing, and how to proceed without it</h3>
+<p>I would want the 90-day export. <strong>If I don't get it,</strong> I sample 300–500 human conversations myself from Intercom inbox views, label them with the taxonomy in section 3, and treat the resulting percentages as provisional. I also run the system in <strong>shadow mode</strong> for two weeks (it drafts, humans don't see it, and I compare), so real traffic corrects my assumptions before any customer is affected.</p>
+<hr>
+<h2>2. The system end to end</h2>
+<h3>In plain language</h3>
+<p>A customer writes in Intercom. The message is checked (is this a real verified customer, is there personal data to strip), then <strong>classified</strong> by intent and risk. A <strong>decision rule</strong> chooses one of three paths: answer from documentation, act on the account through a small set of safe tools, or hand to a human with a prepared briefing. The reply goes out with a source cited. If the customer says &quot;not solved&quot;, asks for a person, or the system's confidence drops, it hands off. After the conversation, the outcome is logged and sampled for quality review, and what was learned feeds the docs.</p>
+<h3>Diagram</h3>
+<pre class="mermaid">flowchart TD
+    C[Customer: chat / email / in-app] --&gt; IC[Intercom Inbox and Messenger]
+    IC --&gt;|webhook, signed| GW[API Gateway + Lambda ingest: verify signature, dedupe, redact PII]
+    GW --&gt; Q[SQS queue]
+    Q --&gt; RT[Router service: Claude Haiku 4.5 classifies intent, risk, sentiment]
+    RT --&gt; D{Decision rule: risk, confidence, reversibility, customer state}
+    D --&gt;|Answer| RAG[RAG: Claude Sonnet 5.5 + pgvector on Postgres RDS]
+    D --&gt;|Act| AG[Account Gateway: typed, allowlisted tools, audit log]
+    D --&gt;|Escalate| HP[Handoff builder: briefing note]
+    KB[(Help Center, release notes, runbooks, resolved tickets)] --&gt; ING[Nightly and on-change ingestion] --&gt; RAG
+    AG --&gt; PMS[(Company product API / database, read-only + scoped writes)]
+    RAG --&gt; R[Reply with cited source]
+    AG --&gt; R
+    R --&gt; IC
+    HP --&gt;|internal note + attributes + team assignment| IC
+    IC --&gt; H[Human agent]
+    RT -.-&gt; OBS[Langfuse: traces, cost, evals]
+    RAG -.-&gt; OBS
+    AG -.-&gt; OBS
+    STAT[Status page / incident flag] --&gt; D
+</pre>
+<h3>Why each choice over the alternatives</h3>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Choice</th>
+<th>Over</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Help desk</td>
+<td><strong>Intercom</strong> (already there)</td>
+<td>Migrating</td>
+<td>Zero migration risk; its APIs, webhooks and notes cover what I need.</td>
+</tr>
+<tr>
+<td>Front-line answering</td>
+<td><strong>Intercom Fin</strong> if already in use <strong>[?]</strong></td>
+<td>Building my own answerer</td>
+<td>It is the fastest way to hold the current 70%. I build only what Fin can't do: the risk gate, account actions, the handoff briefing.</td>
+</tr>
+<tr>
+<td>Model</td>
+<td><strong>Claude via AWS Bedrock</strong>: Haiku 4.5 for routing, Sonnet 5.5 for drafting</td>
+<td>One large model for everything; OpenAI</td>
+<td>Small model on every message keeps cost down; a stronger one only where reasoning matters. Bedrock gives regional residency and no training on our data. Vendor choice is reversible, since the model sits behind one interface.</td>
+</tr>
+<tr>
+<td>Vector store</td>
+<td><strong>pgvector in Postgres</strong></td>
+<td>Pinecone, Weaviate</td>
+<td>The corpus is small (thousands of articles). One fewer vendor, and the same database holds audit logs.</td>
+</tr>
+<tr>
+<td>Compute</td>
+<td><strong>AWS Lambda + SQS</strong> <strong>[A]</strong></td>
+<td>Kubernetes</td>
+<td>Bursty traffic, small team, no servers to run. If the company is on GCP or Azure, the same shape ports.</td>
+</tr>
+<tr>
+<td>Observability/evals</td>
+<td><strong>Langfuse</strong></td>
+<td>Building dashboards</td>
+<td>Traces, cost per conversation and eval runs out of the box. Self-hostable if data policy requires it.</td>
+</tr>
+<tr>
+<td>PII redaction</td>
+<td><strong>Microsoft Presidio</strong></td>
+<td>Ad-hoc regex</td>
+<td>Maintained, configurable, runs in our own environment.</td>
+</tr>
+</tbody>
+</table>
+<h3>What I would deliberately not build</h3>
+<ul>
+<li>My own chat widget, inbox or help desk. Intercom does this.</li>
+<li>My own LLM, fine-tune or vector database.</li>
+<li>Autonomous refund/credit approval, cancellation flows, or a &quot;retention bot&quot;.</li>
+<li>A general-purpose agent with open-ended database access. Tools are narrow and typed instead.</li>
+<li>Voice/phone automation, until text is stable.</li>
+<li>A custom analytics warehouse. Langfuse plus Intercom reporting is enough for a year.</li>
+</ul>
+<hr>
+<h2>3. How it decides</h2>
+<h3>Categories and handling</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Examples</th>
+<th>Handling</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>A. How-to / knowledge</strong></td>
+<td>&quot;How do I add a rate plan?&quot;</td>
+<td>Auto-answer from docs with citation.</td>
+</tr>
+<tr>
+<td><strong>B. Account status lookups</strong></td>
+<td>&quot;Is my invoice paid?&quot;, &quot;Which users have admin?&quot;</td>
+<td>Auto-answer via read-only tool.</td>
+</tr>
+<tr>
+<td><strong>C. Reversible account actions</strong></td>
+<td>Resend invoice, reset password, re-trigger sync, update contact email</td>
+<td>Auto-execute with confirmation to the customer, audit log, undo path.</td>
+</tr>
+<tr>
+<td><strong>D. Diagnostic</strong></td>
+<td>&quot;Bookings aren't syncing from Booking.com&quot;</td>
+<td>Guided troubleshooting using logs/status; escalate if two steps fail.</td>
+</tr>
+<tr>
+<td><strong>E. Known incident</strong></td>
+<td>Outage during check-in hours</td>
+<td>Fast, honest status message linked to the incident; no diagnosis attempts; the affected properties are flagged for human follow-up.</td>
+</tr>
+<tr>
+<td><strong>F. Bug / feature request</strong></td>
+<td>&quot;It crashes when…&quot;</td>
+<td>Capture reproduction details, create a ticket, tell the customer what happens next. Human triage.</td>
+</tr>
+<tr>
+<td><strong>G. Money and contract</strong></td>
+<td>Refund, credit, plan change, cancellation</td>
+<td>Human decides, AI prepares (section 3, &quot;never automate&quot;).</td>
+</tr>
+<tr>
+<td><strong>H. Security, privacy, legal</strong></td>
+<td>Breach concern, data request, legal threat</td>
+<td>Human only, immediate priority.</td>
+</tr>
+<tr>
+<td><strong>I. Emotional / escalated</strong></td>
+<td>Angry GM, churn threat</td>
+<td>Human, with empathy-first briefing.</td>
+</tr>
+<tr>
+<td><strong>J. Unclear / other</strong></td>
+<td>Vague, multi-issue</td>
+<td>Ask one clarifying question; then reclassify or hand off.</td>
+</tr>
+</tbody>
+</table>
+<h3>The live decision rule</h3>
+<p>For each customer turn, the system computes: <strong>intent</strong>, <strong>risk tier</strong> (from the category table), <strong>retrieval grounding</strong> (is there a source strong enough to cite?), <strong>classifier confidence</strong>, <strong>reversibility</strong> of any action, <strong>customer state</strong> (verified identity, sentiment, number of failed attempts, plan/importance, explicit request for a human), and <strong>context</strong> (active incident for this property, hour in the property's time zone).</p>
+<blockquote>
+<p><strong>Automate only if all of these hold:</strong> the category is A–E (or J, for a clarification); the customer is identity-verified for any account-specific step; the answer is grounded in a cited source, or the action is on the allowlist and reversible; confidence is above that intent's threshold; there have been fewer than two failed attempts; no explicit request for a human on a sensitive matter; and no override flag is present. <strong>Otherwise escalate.</strong></p>
+</blockquote>
+<p>Thresholds are set <strong>per intent</strong>, from the eval set, not globally. Low-risk answers get lower thresholds than account actions. An override flag (security keywords, legal language, extreme negative sentiment, VIP account, active outage) always wins over confidence.</p>
+<h3>What should never be automated, however capable the technology</h3>
+<ul>
+<li><strong>Refund, credit and pricing exceptions above a small policy limit; cancellations and contract changes.</strong> They involve money, precedent and the relationship, and someone must be accountable.</li>
+<li><strong>Security incidents, data-breach reports, privacy/data-subject requests.</strong> Legal duties attach, and errors are costly and irreversible.</li>
+<li><strong>Legal threats, chargebacks, regulatory questions.</strong> Words can create liability.</li>
+<li><strong>Anything involving payment card data or credentials.</strong> Don't take it in, don't repeat it.</li>
+<li><strong>Distressed or angry customers, and bad news</strong> (outage post-mortems, breaches). People need to feel heard by a person.</li>
+<li><strong>Account deletion or bulk irreversible changes.</strong></li>
+<li><strong>Product-safety or guest-safety situations.</strong></li>
+</ul>
+<p>The common thread: <strong>irreversible, legally weighty, or relational</strong>. In each case the AI prepares and the human decides.</p>
+<h3>What the agent receives on handoff</h3>
+<p>An <strong>internal note</strong> at the top of the Intercom conversation, plus structured attributes:</p>
+<ol>
+<li><strong>Why it stopped</strong> (which rule fired, in plain words)</li>
+<li><strong>Customer's goal</strong> in one sentence, and urgency</li>
+<li><strong>Account snapshot:</strong> property, plan, product version, active integrations, open incidents</li>
+<li><strong>What was already tried and the results</strong>, so nothing is asked twice</li>
+<li><strong>Sources cited</strong>, and the docs the system found relevant</li>
+<li><strong>Sentiment and risk flags</strong></li>
+<li><strong>A suggested reply</strong>, a draft the agent can edit</li>
+<li><strong>Routing:</strong> conversation assigned to the right team (billing, security, technical) with the right priority</li>
+</ol>
+<p>The customer is told honestly what happens next and when (&quot;A billing specialist will reply within 2 hours&quot;).</p>
+<hr>
+<h2>4. Implementation</h2>
+<p>Stack assumptions <strong>[A]</strong>: the company runs on AWS, has a REST API for its product, and Intercom carries company/property attributes on each contact.</p>
+<h3>Where it runs and what it's built with</h3>
+<p>AWS Lambda (TypeScript or Python, whichever the team already uses), SQS between ingest and processing, Postgres (RDS) with pgvector, secrets in AWS Secrets Manager, infrastructure as code (Terraform). A feature flag in Intercom Workflows acts as a kill switch.</p>
+<h3>How a message arrives and what happens on the way in</h3>
+<p>Intercom webhook → API Gateway → Lambda that (1) <strong>verifies the signature</strong>, (2) <strong>deduplicates</strong> by conversation + message part ID, (3) <strong>checks identity</strong> (Intercom identity verification, so an unverified visitor gets docs-only answers), (4) <strong>redacts PII</strong> with Presidio, (5) treats message and attachment text as <strong>untrusted input</strong>, which is the defence against prompt injection, then (6) enqueues. Only redacted text goes to the model.</p>
+<h3>How it knows the product, and how that holds as the product changes</h3>
+<p>Sources: Intercom Help Center, release notes, internal runbooks, and resolved-ticket answers that a human has approved. Ingestion runs <strong>nightly and on every article-update webhook</strong>, chunked by heading with metadata (module, version, last-updated). Keeping it fresh:</p>
+<ul>
+<li>The release checklist gets one item: <em>&quot;docs updated?&quot;</em>, owned by Product.</li>
+<li>Answers citing docs older than the module's latest release are <strong>flagged</strong> for review.</li>
+<li>A weekly <strong>&quot;could not answer&quot;</strong> report lists the questions with no good source, which becomes the docs team's to-do list.</li>
+<li>The eval set is rerun on each ingestion so a docs change can't silently degrade answers.</li>
+</ul>
+<h3>How it retrieves customer details and acts on the account</h3>
+<p>An <strong>Account Gateway</strong>, one small service that is the <em>only</em> thing that touches the product API:</p>
+<ul>
+<li>A <strong>read-only</strong> service account for lookups, scoped by tenant on <strong>every</strong> call (the property ID comes from the verified Intercom identity, never from the model's output).</li>
+<li><strong>Typed, allowlisted tools</strong> (e.g. <code>resend_invoice(invoice_id)</code>, <code>retrigger_sync(channel)</code>), each with parameter validation, idempotency keys, rate limits and a logged undo where possible.</li>
+<li>No tool exists for refunds, permissions escalation or deletion.</li>
+<li>The model <em>proposes</em>; the gateway validates and executes.</li>
+</ul>
+<h3>What a conversation costs and how I hold it down</h3>
+<p>Rough estimate <strong>[A: assumptions, not measurements]</strong>: Haiku routing ≈ $0.001; a Sonnet answer with retrieved context ≈ $0.01–0.03; a tool-using diagnostic ≈ $0.05–0.10. Fin's per-resolution fee is a separate line <strong>[? verify current pricing]</strong>. Controls: small model on every message, large one only when needed; <strong>prompt caching</strong> for the static instructions and product context; top-3 retrieval, not top-20; a <strong>hard cap</strong> on tool-loop steps and tokens per conversation; cached account lookups within a conversation; and deflection through cited docs before any tool use.</p>
+<h3>What I record, and what I never record</h3>
+<p><strong>Record:</strong> conversation ID, category, rule that fired, decision and confidence, doc IDs retrieved, tool calls (with hashed/redacted arguments), latency, token cost, outcome, re-contact within 72 hours, CSAT, and reviewer QA labels. Redacted transcripts kept <strong>90 days</strong> for evaluation.
+<strong>Never record:</strong> card numbers, passwords, tokens or API keys, <strong>hotel guests' personal data</strong> (names, passports, contact details; these are third-party data we hold only in passing), or unredacted prompts in vendor logs. Zero-retention and no-training terms are required from the model vendor.</p>
+<h3>Where it would fail first</h3>
+<ol>
+<li><strong>Cross-tenant mix-up</strong> (the wrong property's data shown). Rare but catastrophic. The guard is tenant scoping in the gateway, plus a test that tries to break it.</li>
+<li><strong>Stale docs after a release</strong>, causing confidently wrong answers.</li>
+<li><strong>Outage days:</strong> a flood of similar messages, misclassified as individual bugs.</li>
+<li><strong>Prompt injection</strong> through a pasted email or attachment.</li>
+<li><strong>The human queue</strong> itself: better briefings mean faster handling, but a small team can still be swamped if thresholds are set too cautiously at launch.</li>
+<li><strong>The product API</strong> being slow or down, so tools time out. The fallback is to hand off, never to guess.</li>
+</ol>
+<hr>
+<h2>5. Putting it into production</h2>
+<h3>Sequence from nothing to running</h3>
+<table>
+<thead>
+<tr>
+<th>Weeks</th>
+<th>Step</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0–2</td>
+<td>Discovery: the questions above, label 300–500 conversations, set the baseline (resolution, CSAT, handle time), agree the &quot;never&quot; list with Finance, Legal and Security.</td>
+</tr>
+<tr>
+<td>2–4</td>
+<td>Build ingest, router, RAG, handoff note. Build an <strong>eval set</strong> of ~300 real conversations with the correct answer/path.</td>
+</tr>
+<tr>
+<td>4–6</td>
+<td><strong>Shadow mode</strong>: system drafts internally; agents rate drafts. Tune thresholds.</td>
+</tr>
+<tr>
+<td>6–8</td>
+<td>Account Gateway with read-only tools; internal test property; red-team for injection and tenant leakage.</td>
+</tr>
+<tr>
+<td>8–10</td>
+<td><strong>Canary:</strong> 5% of traffic, categories A and B only, business hours.</td>
+</tr>
+<tr>
+<td>10–16</td>
+<td>Ramp per category (5 → 25 → 50 → 100%), adding C, D and E only after each passes its gate.</td>
+</tr>
+</tbody>
+</table>
+<h3>Reducing the risk on the first real message</h3>
+<ul>
+<li>Run shadow mode first, so the first live message has been rehearsed hundreds of times.</li>
+<li>Start with <strong>read-only, low-risk</strong> categories on 5% of traffic.</li>
+<li>The customer is told they're talking to an AI, with a <strong>one-tap route to a human</strong>.</li>
+<li>The first ~200 live answers are <strong>reviewed by a human within hours</strong>, not weeks.</li>
+<li>Kill switch tested <em>before</em> launch.</li>
+</ul>
+<h3>Withdrawal: signal and threshold</h3>
+<table>
+<thead>
+<tr>
+<th>Signal</th>
+<th>Threshold</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Any cross-tenant data exposure</td>
+<td><strong>1 event</strong></td>
+<td>Global kill switch immediately; post-mortem before restart.</td>
+</tr>
+<tr>
+<td>Wrong-answer rate in QA sample (per category)</td>
+<td>&gt; 2% (read-only), &gt; 0.5% (actions)</td>
+<td>Pull that category back to shadow.</td>
+</tr>
+<tr>
+<td>Re-contact within 72 hours on AI-resolved chats</td>
+<td>&gt; 15% or +5 points over baseline</td>
+<td>Investigate; pause the category if unexplained in 48 hours.</td>
+</tr>
+<tr>
+<td>CSAT on AI-handled conversations</td>
+<td>&gt; 5 points below human baseline over 100+ chats</td>
+<td>Reduce traffic share.</td>
+</tr>
+<tr>
+<td>Any action taken outside the allowlist</td>
+<td>1 event</td>
+<td>Disable that tool.</td>
+</tr>
+</tbody>
+</table>
+<p>These figures are starting points I'd defend but expect to recalibrate with real data <strong>[A]</strong>.</p>
+<h3>The following months</h3>
+<ul>
+<li><strong>Weekly:</strong> review sampled failures and the &quot;could not answer&quot; list; fix docs first, prompts second.</li>
+<li><strong>Monthly:</strong> rerun the eval set; recalibrate thresholds; add the next intent only after the previous one holds for four weeks.</li>
+<li><strong>Quarterly:</strong> review the &quot;never&quot; list with Legal and Finance; review model and vendor choices; revisit cost per conversation.</li>
+<li>Human agents shift toward specialist work: exceptions, at-risk accounts, and proactive outreach during incidents.</li>
+</ul>
+<hr>
+<h2>6. Build, buy or delegate</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>What</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Buy</strong></td>
+<td>Intercom (+ Fin if in use), Claude via Bedrock, Langfuse, Presidio (open source), AWS.</td>
+</tr>
+<tr>
+<td><strong>Build</strong></td>
+<td>Router and risk gate, Account Gateway, handoff builder, ingestion pipeline, eval set. This is the company-specific logic no vendor has.</td>
+</tr>
+<tr>
+<td><strong>Delegate</strong></td>
+<td>Legal/Security sign-off on the never-list and retention rules (to counsel and CISO). Optionally an out-of-hours human tier for category G–I (BPO) if 24×7 is contractually required.</td>
+</tr>
+<tr>
+<td><strong>Refuse</strong></td>
+<td>Own model, own vector DB, own help desk; automating anything on the never-list; promising 100%.</td>
+</tr>
+</tbody>
+</table>
+<h3>Rough running cost <strong>[A: illustrative, assuming 10,000 conversations/month; verify against real volume]</strong></h3>
+<ul>
+<li>Fin resolutions: ≈ $1 each <strong>[? verify]</strong> → about $8–9k/month if ~85% resolve automatically (the largest line, driven by volume × resolution rate).</li>
+<li>Own LLM usage: ~$300–800/month.</li>
+<li>AWS + Postgres: ~$300–700/month.</li>
+<li>Langfuse/monitoring: $0–500/month.</li>
+<li><strong>Total ≈ $9–11k/month</strong>, versus humans handling an extra 15 points of volume plus the existing 30%. The break-even depends on the current fully-loaded cost per human ticket, which I'd ask Finance for <strong>[?]</strong>.</li>
+<li>If they are <em>not</em> on Fin, replace that line with my own LLM cost (a fraction of this) plus about 6 more weeks of build.</li>
+</ul>
+<h3>The commitment in front of the founder</h3>
+<p><strong>Resolution without a human: 85% at month 6 (from 70%); 90% is a stretch at month 12.</strong> I would not say 100%.</p>
+<p>Where the remaining ~15% goes (my estimate <strong>[A]</strong>, to be replaced by the 90-day export):</p>
+<table>
+<thead>
+<tr>
+<th>Share</th>
+<th>Destination</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>~5%</td>
+<td>Never-list: money, contracts, security, legal, distressed customers</td>
+</tr>
+<tr>
+<td>~4%</td>
+<td>Bugs and live incidents needing engineering</td>
+</tr>
+<tr>
+<td>~3%</td>
+<td>Ambiguous, or customer insists on a person</td>
+</tr>
+<tr>
+<td>~3%</td>
+<td>Novel questions with no documentation yet (shrinks as docs improve)</td>
+</tr>
+</tbody>
+</table>
+<p>These 15% arrive with a briefing, are routed to the right specialist, and take far less time than today. That, more than the number itself, is what changes the economics.</p>
+<hr>
+<h2>7. Note on tools used</h2>
+<p>I used <strong>Claude</strong> to draft and structure this document, and to produce the diagram (Mermaid). I did not have access to the company's systems or data, so all numbers, prices and thresholds are marked estimates, not measurements. Vendor pricing (notably Intercom Fin) and model costs must be verified before anyone relies on them.</p>
+
+
+<!--claude-mermaid-runtime-begin:3477-->
+<style>.mermaid-diagram{margin-block:4px}.mermaid-diagram svg{display:block;margin:0 auto;max-width:100%;height:auto}</style>
+<script src="/_runtime/mermaid-11.16.1.min.js"></script>
+<script>(function(){
+var CFG={"palettes":{"light":{"surface":"#f4efe4","text":"#42392e","line":"#8a7f6d","border":"#7a6c52","bg":"#fffdf8"},"dark":{"surface":"#262b34","text":"#f2f3f5","line":"#a8adb8","border":"#9aa4b8","bg":"#1f232b"}}};
+if(typeof mermaid==='undefined')return;
+var pres=Array.prototype.slice.call(document.querySelectorAll('pre.mermaid')).filter(function(p){if(p.hasAttribute('data-claude-mermaid-claimed'))return false;p.setAttribute('data-claude-mermaid-claimed','1');return true;});
+if(!pres.length)return;
+var mq=window.matchMedia?window.matchMedia('(prefers-color-scheme: dark)'):null;
+var root=document.documentElement;
+var items=pres.map(function(pre){
+var mount=document.createElement('div');mount.className='mermaid-diagram';
+return {pre:pre,mount:mount,src:pre.textContent||''};
+});
+var seq=0;
+var renderGen=0;
+var lastKey='';
+function pageBg(fallback){
+var els=[document.body,document.documentElement];
+for(var i=0;i<els.length;i++){
+var c=els[i]&&getComputedStyle(els[i]).backgroundColor;
+if(c&&c!=='transparent'&&c!=='rgba(0, 0, 0, 0)')return c;
+}
+return fallback;
+}
+function render(){
+var theme=root.getAttribute('data-theme');
+var dark=theme==='dark'||(!!(mq&&mq.matches)&&theme!=='light');
+var pal=dark?CFG.palettes.dark:CFG.palettes.light;
+var bg=pageBg(pal.bg);
+var key=(dark?'d':'l')+'|'+bg;
+if(key===lastKey)return;
+lastKey=key;
+var gen=++renderGen;
+var font=getComputedStyle(document.body).fontFamily||'sans-serif';
+var nat={useMaxWidth:false};
+mermaid.initialize({
+startOnLoad:false,securityLevel:'strict',theme:'base',
+flowchart:nat,sequence:nat,er:nat,state:nat,class:nat,pie:nat,
+gantt:nat,journey:nat,timeline:nat,gitGraph:nat,mindmap:nat,xyChart:nat,
+quadrantChart:nat,sankey:nat,c4:nat,requirement:nat,block:nat,
+packet:nat,kanban:nat,architecture:nat,radar:nat,
+themeVariables:{background:bg,mainBkg:pal.surface,primaryColor:pal.surface,
+primaryTextColor:pal.text,lineColor:pal.line,primaryBorderColor:pal.border,
+nodeBorder:pal.border,clusterBorder:pal.border,edgeLabelBackground:bg,
+clusterBkg:'rgba(127,127,127,0.07)',titleColor:pal.text,
+darkMode:dark,rowOdd:bg,rowEven:'rgba(127,127,127,0.07)',
+attributeBackgroundColorOdd:bg,attributeBackgroundColorEven:'rgba(127,127,127,0.07)',
+fontSize:'16px',fontFamily:font},
+themeCSS:'.node rect, .node circle, .node polygon, .node path, .cluster rect { stroke-width: 2px; }'
+});
+items.forEach(function(it){
+var id='claude-mermaid-'+seq++;
+mermaid.render(id,it.src).then(function(r){
+if(gen!==renderGen)return;
+var prev=it.pre.previousElementSibling;
+if(prev&&prev.className==='mermaid-diagram'&&prev!==it.mount)return;
+it.mount.innerHTML=r.svg;
+if(!it.mount.parentNode)it.pre.parentNode.insertBefore(it.mount,it.pre);
+it.pre.style.display='none';
+},function(){
+var scratch=document.getElementById(id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+scratch=document.getElementById('d'+id);
+if(scratch)scratch.parentNode.removeChild(scratch);
+if(gen!==renderGen)return;
+if(it.mount.parentNode)it.mount.parentNode.removeChild(it.mount);
+it.pre.style.display='';
+});
+});
+}
+render();
+if(mq&&mq.addEventListener)mq.addEventListener('change',render);
+if(typeof MutationObserver!=='undefined')new MutationObserver(render).observe(root,{attributes:true,attributeFilter:['data-theme']});
+})();</script>
+<!--claude-mermaid-runtime-end-->
+</body></html>
